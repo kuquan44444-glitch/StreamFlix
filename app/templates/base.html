@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Plataforma de streaming de películas - Tu cine favorito online">
+    <meta name="author" content="Netflix Clone">
+    
+    <!-- Título dinámico -->
+    <title>
+        {% if title %}{{ title }} - StreamFlix{% else %}StreamFlix - Tu cine favorito{% endif %}
+    </title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Estilos personalizados -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Estilos adicionales específicos de página -->
+    {% block styles %}{% endblock %}
+</head>
+<body class="bg-dark text-light">
+    
+    <!-- Navegación principal -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <!-- Logo -->
+            <a class="navbar-brand fw-bold text-danger" href="{{ url_for('main.index') }}">
+                <i class="fas fa-play-circle me-2"></i>StreamFlix
+            </a>
+            
+            <!-- Botón responsive -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Enlaces de navegación -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.index') }}">
+                            <i class="fas fa-home me-1"></i>Inicio
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-list me-1"></i>Categorías
+                        </a>
+                        <ul class="dropdown-menu bg-dark">
+                            {% for category in get_categories() %}
+                            <li>
+                                <a class="dropdown-item text-light" href="{{ url_for('main.category_movies', category_id=category.id) }}">
+                                    {{ category.name }}
+                                </a>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.search') }}">
+                            <i class="fas fa-search me-1"></i>Buscar
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- Barra de búsqueda rápida -->
+                <form class="d-flex me-3" method="GET" action="{{ url_for('main.search') }}">
+                    <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="Buscar películas..." aria-label="Search">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                
+                <!-- Menú de usuario -->
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end bg-dark">
+                                <li>
+                                    <a class="dropdown-item text-light" href="{{ url_for('auth.profile') }}">
+                                        <i class="fas fa-user me-2"></i>Mi Perfil
+                                    </a>
+                                </li>
+                                {% if current_user.is_admin %}
+                                <li>
+                                    <a class="dropdown-item text-light" href="{{ url_for('admin.dashboard') }}">
+                                        <i class="fas fa-cog me-2"></i>Administración
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-light" href="{{ url_for('auth.logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Iniciar Sesión
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('auth.register') }}">
+                                <i class="fas fa-user-plus me-1"></i>Registrarse
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Espacio publicitario superior -->
+    {% if header_ads %}
+    <div class="ad-space-header bg-secondary py-2 mt-5">
+        <div class="container text-center">
+            {% for ad in header_ads %}
+                {{ ad.ad_code|safe }}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Contenido principal -->
+    <main class="main-content">
+        <div class="container-fluid px-4">
+            
+            <!-- Mensajes flash -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Contenido específico de la página -->
+            {% block content %}{% endblock %}
+            
+        </div>
+    </main>
+    
+    <!-- Pie de página -->
+    <footer class="bg-dark text-light py-5 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5 class="text-danger">StreamFlix</h5>
+                    <p class="text-muted">Tu plataforma de streaming favorita con las mejores películas y series.</p>
+                </div>
+                <div class="col-md-2">
+                    <h6>Enlaces</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{{ url_for('main.index') }}" class="text-muted text-decoration-none">Inicio</a></li>
+                        <li><a href="{{ url_for('main.search') }}" class="text-muted text-decoration-none">Buscar</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Términos</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Privacidad</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Categorías</h6>
+                    <ul class="list-unstyled">
+                        {% for category in get_categories()[:4] %}
+                        <li>
+                            <a href="{{ url_for('main.category_movies', category_id=category.id) }}" class="text-muted text-decoration-none">
+                                {{ category.name }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h6>Síguenos</h6>
+                    <div class="social-links">
+                        <a href="#" class="text-muted me-3"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-muted me-3"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-muted me-3"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-muted me-3"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Espacio publicitario footer -->
+            {% if footer_ads %}
+            <div class="ad-space-footer mt-4 pt-4 border-top">
+                <div class="text-center">
+                    {% for ad in footer_ads %}
+                        {{ ad.ad_code|safe }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <hr class="my-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="text-muted mb-0">&copy; 2024 StreamFlix. Todos los derechos reservados.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="text-muted mb-0">Desarrollado con ❤️ usando Flask</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Scripts adicionales específicos de página -->
+    {% block scripts %}{% endblock %}
+    
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner-border text-danger" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

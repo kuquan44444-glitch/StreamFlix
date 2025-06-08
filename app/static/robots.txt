@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Allow: /static/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /api/
+Disallow: /uploads/videos/
+
+# Sitemap (actualizar con tu dominio real)
+Sitemap: https://tu-dominio.com/sitemap.xml
+
+# Crawl delay para ser amigable con los servidores
+Crawl-delay: 1 

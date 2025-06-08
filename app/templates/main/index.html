@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% set title = "Inicio" %}
+
+{% block styles %}
+<style>
+    .hero-section {
+        height: 70vh;
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1489599433919-86ce8b7ed0e6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+        background-size: cover;
+        background-position: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .movie-card {
+        background: #1a1a1a;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .movie-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+    }
+    
+    .movie-poster {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+    }
+    
+    .movie-info {
+        padding: 15px;
+    }
+    
+    .featured-carousel .carousel-item {
+        height: 400px;
+    }
+    
+    .featured-movie-bg {
+        background-size: cover;
+        background-position: center;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    
+    .featured-movie-bg::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, transparent 70%);
+    }
+    
+    .featured-content {
+        position: relative;
+        z-index: 2;
+        max-width: 50%;
+    }
+    
+    .section-title {
+        color: #fff;
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #dc3545;
+        padding-left: 15px;
+    }
+    
+    .movie-row {
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+    
+    .movie-row::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .movie-row::-webkit-scrollbar-track {
+        background: #2a2a2a;
+        border-radius: 4px;
+    }
+    
+    .movie-row::-webkit-scrollbar-thumb {
+        background: #dc3545;
+        border-radius: 4px;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        border-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Sección Hero -->
+<section class="hero-section text-center text-white">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-4">Bienvenido a StreamFlix</h1>
+                <p class="lead mb-4">Disfruta de miles de películas y series en alta calidad</p>
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('auth.register') }}" class="btn btn-danger btn-lg me-3">
+                    <i class="fas fa-play me-2"></i>Comenzar Ahora
+                </a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-sign-in-alt me-2"></i>Iniciar Sesión
+                </a>
+                {% else %}
+                <a href="#featured" class="btn btn-danger btn-lg">
+                    <i class="fas fa-film me-2"></i>Ver Películas
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if current_user.is_authenticated %}
+<!-- Películas Destacadas -->
+{% if featured_movies %}
+<section id="featured" class="py-5">
+    <div class="container">
+        <h2 class="section-title">Películas Destacadas</h2>
+        
+        <div id="featuredCarousel" class="carousel slide featured-carousel" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for movie in featured_movies %}
+                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <div class="featured-movie-bg" style="background-image: url('{{ url_for('static', filename=movie.thumbnail) if movie.thumbnail else 'https://via.placeholder.com/1200x400/333/fff?text=Sin+Imagen' }}')">
+                        <div class="container">
+                            <div class="featured-content text-white">
+                                <h3 class="display-5 fw-bold mb-3">{{ movie.title }}</h3>
+                                <p class="lead mb-4">{{ movie.description[:200] }}{% if movie.description|length > 200 %}...{% endif %}</p>
+                                <div class="mb-3">
+                                    {% if movie.year %}<span class="badge bg-secondary me-2">{{ movie.year }}</span>{% endif %}
+                                    <span class="badge bg-danger me-2">{{ movie.category.name }}</span>
+                                    {% if movie.duration %}<span class="badge bg-info">{{ movie.duration }} min</span>{% endif %}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('main.watch_movie', movie_id=movie.id) }}" class="btn btn-danger btn-lg">
+                                        <i class="fas fa-play me-2"></i>Reproducir
+                                    </a>
+                                    <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="btn btn-outline-light btn-lg">
+                                        <i class="fas fa-info-circle me-2"></i>Más Info
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Controles del carrusel -->
+            <button class="carousel-control-prev" type="button" data-bs-target="#featuredCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#featuredCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+            </button>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Nuevas del Mes -->
+{% if new_movies %}
+<section class="py-4">
+    <div class="container">
+        <h2 class="section-title">Nuevas del Mes</h2>
+        <div class="movie-row d-flex gap-3 pb-3" style="overflow-x: auto;">
+            {% for movie in new_movies %}
+            <div class="flex-shrink-0" style="width: 200px;">
+                <div class="movie-card h-100">
+                    <img src="{{ url_for('static', filename=movie.thumbnail) if movie.thumbnail else 'https://via.placeholder.com/200x300/333/fff?text=Sin+Imagen' }}" 
+                         alt="{{ movie.title }}" class="movie-poster">
+                    <div class="movie-info">
+                        <h6 class="text-white mb-2">{{ movie.title }}</h6>
+                        <p class="text-muted small mb-2">{{ movie.category.name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            {% if movie.rating > 0 %}
+                            <span class="text-warning">
+                                <i class="fas fa-star"></i> {{ "%.1f"|format(movie.rating) }}
+                            </span>
+                            {% endif %}
+                            <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Películas por Categoría -->
+{% for category_data in categories_with_movies %}
+<section class="py-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="section-title mb-0">{{ category_data.category.name }}</h2>
+            <a href="{{ url_for('main.category_movies', category_id=category_data.category.id) }}" class="btn btn-outline-danger btn-sm">
+                Ver todas <i class="fas fa-arrow-right ms-1"></i>
+            </a>
+        </div>
+        
+        <div class="movie-row d-flex gap-3 pb-3" style="overflow-x: auto;">
+            {% for movie in category_data.movies %}
+            <div class="flex-shrink-0" style="width: 200px;">
+                <div class="movie-card h-100">
+                    <img src="{{ url_for('static', filename=movie.thumbnail) if movie.thumbnail else 'https://via.placeholder.com/200x300/333/fff?text=Sin+Imagen' }}" 
+                         alt="{{ movie.title }}" class="movie-poster">
+                    <div class="movie-info">
+                        <h6 class="text-white mb-2">{{ movie.title }}</h6>
+                        <p class="text-muted small mb-2">
+                            {% if movie.year %}{{ movie.year }}{% endif %}
+                            {% if movie.duration %} • {{ movie.duration }}min{% endif %}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            {% if movie.rating > 0 %}
+                            <span class="text-warning small">
+                                <i class="fas fa-star"></i> {{ "%.1f"|format(movie.rating) }}
+                            </span>
+                            {% endif %}
+                            <div>
+                                <a href="{{ url_for('main.watch_movie', movie_id=movie.id) }}" class="btn btn-sm btn-danger me-1" title="Reproducir">
+                                    <i class="fas fa-play"></i>
+                                </a>
+                                <a href="{{ url_for('main.movie_detail', movie_id=movie.id) }}" class="btn btn-sm btn-outline-secondary" title="Ver detalles">
+                                    <i class="fas fa-info"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Espacio publicitario entre categorías -->
+{% if between_ads and loop.index % 2 == 0 %}
+<section class="py-3">
+    <div class="container">
+        <div class="ad-space-between text-center">
+            {% for ad in between_ads %}
+                {{ ad.ad_code|safe }}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endfor %}
+
+{% else %}
+<!-- Mensaje para usuarios no autenticados -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 mx-auto text-center">
+                <h2 class="text-white mb-4">Accede a Miles de Películas</h2>
+                <p class="text-muted mb-4">Regístrate para comenzar a disfrutar de nuestro contenido premium</p>
+                
+                <div class="row text-center mb-5">
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="fas fa-film fa-3x mb-3"></i>
+                            <h4>+1000</h4>
+                            <p class="mb-0">Películas</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="fas fa-hd-video fa-3x mb-3"></i>
+                            <h4>HD</h4>
+                            <p class="mb-0">Calidad</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stats-card">
+                            <i class="fas fa-mobile-alt fa-3x mb-3"></i>
+                            <h4>Multi-device</h4>
+                            <p class="mb-0">Acceso</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="{{ url_for('auth.register') }}" class="btn btn-danger btn-lg me-3">
+                    <i class="fas fa-user-plus me-2"></i>Registrarse Gratis
+                </a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-sign-in-alt me-2"></i>Ya tengo cuenta
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Sidebar con anuncios -->
+{% if sidebar_ads %}
+<div class="position-fixed top-50 end-0 translate-middle-y d-none d-lg-block" style="z-index: 1030;">
+    <div class="sidebar-ads p-3 bg-dark rounded-start">
+        {% for ad in sidebar_ads %}
+            {{ ad.ad_code|safe }}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-play del carrusel con intervalo más largo
+    document.addEventListener('DOMContentLoaded', function() {
+        var carousel = document.getElementById('featuredCarousel');
+        if (carousel) {
+            var bsCarousel = new bootstrap.Carousel(carousel, {
+                interval: 8000,
+                wrap: true
+            });
+        }
+        
+        // Efecto hover en las tarjetas de películas
+        document.querySelectorAll('.movie-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.05)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+{% set title = "Reproduciendo: " + movie.title %}
+
+{% block styles %}
+<style>
+    body {
+        background: #000 !important;
+    }
+    
+    .watch-container {
+        min-height: 100vh;
+        background: #000;
+        padding: 0;
+    }
+    
+    .video-player-container {
+        position: relative;
+        width: 100%;
+        height: 100vh;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .video-player {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+    
+    .video-player video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    
+    .video-player iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+    
+    .video-controls {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0,0,0,0.8));
+        padding: 20px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .video-player:hover .video-controls,
+    .video-controls.show {
+        opacity: 1;
+    }
+    
+    .control-bar {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .play-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        transition: background 0.3s ease;
+    }
+    
+    .play-btn:hover {
+        background: rgba(255,255,255,0.2);
+    }
+    
+    .progress-container {
+        flex: 1;
+        height: 6px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 3px;
+        cursor: pointer;
+        position: relative;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: #dc3545;
+        border-radius: 3px;
+        width: 0%;
+        transition: width 0.1s ease;
+    }
+    
+    .time-display {
+        color: white;
+        font-size: 0.9rem;
+        min-width: 100px;
+        text-align: center;
+    }
+    
+    .volume-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .volume-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
+    
+    .volume-slider {
+        width: 80px;
+        height: 4px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+    }
+    
+    .fullscreen-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 5px;
+    }
+    
+    .movie-info-overlay {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        max-width: 400px;
+    }
+    
+    .video-player:hover .movie-info-overlay {
+        opacity: 1;
+    }
+    
+    .back-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(0,0,0,0.7);
+        border: none;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        z-index: 10;
+    }
+    
+    .back-btn:hover {
+        background: rgba(0,0,0,0.9);
+    }
+    
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #dc3545;
+        font-size: 3rem;
+        z-index: 5;
+    }
+    
+    .error-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        text-align: center;
+        z-index: 5;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .movie-info-overlay {
+            display: none;
+        }
+        
+        .control-bar {
+            gap: 10px;
+        }
+        
+        .volume-container {
+            display: none;
+        }
+        
+        .time-display {
+            font-size: 0.8rem;
+            min-width: 80px;
+        }
+    }
+    
+    /* Ocultar controles nativos del video */
+    video::-webkit-media-controls {
+        display: none !important;
+    }
+    
+    video::-webkit-media-controls-enclosure {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="watch-container">
+    <div class="video-player-container">
+        <!-- Botón de regreso -->
+        <button class="back-btn" onclick="goBack()">
+            <i class="fas fa-times me-2"></i>Cerrar
+        </button>
+        
+        <!-- Información de la película (overlay) -->
+        <div class="movie-info-overlay">
+            <h4>{{ movie.title }}</h4>
+            {% if movie.year or movie.duration %}
+            <p class="mb-1">
+                {% if movie.year %}{{ movie.year }}{% endif %}
+                {% if movie.duration %} • {{ movie.duration }} min{% endif %}
+            </p>
+            {% endif %}
+            <p class="small text-muted">{{ movie.category.name }}</p>
+        </div>
+        
+        <!-- Reproductor de video -->
+        <div class="video-player" id="videoPlayer">
+            <!-- Loading spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            
+            {% if movie.video_file %}
+                <!-- Video local -->
+                <video id="mainVideo" preload="metadata">
+                    <source src="{{ url_for('static', filename=movie.video_file) }}" type="video/mp4">
+                    Tu navegador no soporta la reproducción de video.
+                </video>
+            {% elif movie.video_url %}
+                <!-- Video externo (YouTube/Vimeo) -->
+                <iframe id="externalVideo" 
+                        src="{{ movie.get_video_embed_url() }}" 
+                        allowfullscreen>
+                </iframe>
+            {% else %}
+                <!-- Error: no hay video disponible -->
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h4>Video no disponible</h4>
+                    <p>Lo sentimos, esta película no está disponible para reproducción en este momento.</p>
+                    <button class="btn btn-danger" onclick="goBack()">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </button>
+                </div>
+            {% endif %}
+            
+            {% if movie.video_file %}
+            <!-- Controles personalizados (solo para video local) -->
+            <div class="video-controls" id="videoControls">
+                <div class="control-bar">
+                    <button class="play-btn" id="playBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    
+                    <div class="time-display" id="timeDisplay">
+                        00:00 / 00:00
+                    </div>
+                    
+                    <div class="volume-container">
+                        <button class="volume-btn" id="volumeBtn">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
+                    </div>
+                    
+                    <button class="fullscreen-btn" id="fullscreenBtn">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let video = null;
+    let isPlaying = false;
+    let controlsTimeout = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializePlayer();
+    });
+    
+    function initializePlayer() {
+        video = document.getElementById('mainVideo');
+        
+        if (video) {
+            setupVideoControls();
+            setupVideoEvents();
+            hideLoading();
+        } else {
+            // Para videos externos, solo ocultar loading después de un tiempo
+            setTimeout(hideLoading, 2000);
+        }
+    }
+    
+    function setupVideoControls() {
+        const playBtn = document.getElementById('playBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const volumeBtn = document.getElementById('volumeBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const videoControls = document.getElementById('videoControls');
+        
+        // Play/Pause
+        playBtn.addEventListener('click', togglePlay);
+        video.addEventListener('click', togglePlay);
+        
+        // Progress bar
+        progressContainer.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            video.currentTime = percent * video.duration;
+        });
+        
+        // Volume
+        volumeBtn.addEventListener('click', toggleMute);
+        volumeSlider.addEventListener('input', function() {
+            video.volume = this.value / 100;
+            updateVolumeIcon();
+        });
+        
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', handleKeyboard);
+        
+        // Mouse movement for controls
+        const videoPlayer = document.getElementById('videoPlayer');
+        videoPlayer.addEventListener('mousemove', showControls);
+        videoPlayer.addEventListener('mouseleave', hideControls);
+    }
+    
+    function setupVideoEvents() {
+        video.addEventListener('loadstart', showLoading);
+        video.addEventListener('canplay', hideLoading);
+        video.addEventListener('timeupdate', updateProgress);
+        video.addEventListener('ended', onVideoEnded);
+        video.addEventListener('error', onVideoError);
+        
+        // Auto-play
+        video.play().catch(function(error) {
+            console.log('Auto-play prevented:', error);
+        });
+    }
+    
+    function togglePlay() {
+        if (video.paused) {
+            video.play();
+            document.getElementById('playBtn').innerHTML = '<i class="fas fa-pause"></i>';
+            isPlaying = true;
+        } else {
+            video.pause();
+            document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i>';
+            isPlaying = false;
+        }
+    }
+    
+    function updateProgress() {
+        const progressBar = document.getElementById('progressBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        
+        if (video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressBar.style.width = percent + '%';
+            
+            const currentTime = formatTime(video.currentTime);
+            const duration = formatTime(video.duration);
+            timeDisplay.textContent = `${currentTime} / ${duration}`;
+        }
+    }
+    
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    function toggleMute() {
+        const volumeBtn = document.getElementById('volumeBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        
+        if (video.muted) {
+            video.muted = false;
+            volumeSlider.value = video.volume * 100;
+        } else {
+            video.muted = true;
+        }
+        updateVolumeIcon();
+    }
+    
+    function updateVolumeIcon() {
+        const volumeBtn = document.getElementById('volumeBtn');
+        const icon = volumeBtn.querySelector('i');
+        
+        if (video.muted || video.volume === 0) {
+            icon.className = 'fas fa-volume-mute';
+        } else if (video.volume < 0.5) {
+            icon.className = 'fas fa-volume-down';
+        } else {
+            icon.className = 'fas fa-volume-up';
+        }
+    }
+    
+    function toggleFullscreen() {
+        const videoPlayer = document.getElementById('videoPlayer');
+        
+        if (!document.fullscreenElement) {
+            videoPlayer.requestFullscreen().catch(err => {
+                console.log('Error entering fullscreen:', err);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    }
+    
+    function handleKeyboard(e) {
+        if (!video) return;
+        
+        switch(e.code) {
+            case 'Space':
+                e.preventDefault();
+                togglePlay();
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                video.currentTime -= 10;
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                video.currentTime += 10;
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                video.volume = Math.min(1, video.volume + 0.1);
+                document.getElementById('volumeSlider').value = video.volume * 100;
+                updateVolumeIcon();
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                video.volume = Math.max(0, video.volume - 0.1);
+                document.getElementById('volumeSlider').value = video.volume * 100;
+                updateVolumeIcon();
+                break;
+            case 'KeyF':
+                e.preventDefault();
+                toggleFullscreen();
+                break;
+            case 'KeyM':
+                e.preventDefault();
+                toggleMute();
+                break;
+        }
+    }
+    
+    function showControls() {
+        const videoControls = document.getElementById('videoControls');
+        if (videoControls) {
+            videoControls.classList.add('show');
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(hideControls, 3000);
+        }
+    }
+    
+    function hideControls() {
+        const videoControls = document.getElementById('videoControls');
+        if (videoControls && isPlaying) {
+            videoControls.classList.remove('show');
+        }
+    }
+    
+    function showLoading() {
+        document.getElementById('loadingSpinner').style.display = 'block';
+    }
+    
+    function hideLoading() {
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+    
+    function onVideoEnded() {
+        document.getElementById('playBtn').innerHTML = '<i class="fas fa-replay"></i>';
+        isPlaying = false;
+        showControls();
+    }
+    
+    function onVideoError() {
+        hideLoading();
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+            <h4>Error al cargar el video</h4>
+            <p>No se pudo reproducir el video. Verifica tu conexión a internet.</p>
+            <button class="btn btn-danger" onclick="goBack()">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </button>
+        `;
+        document.getElementById('videoPlayer').appendChild(errorDiv);
+    }
+    
+    function goBack() {
+        // Pausar video antes de salir
+        if (video && !video.paused) {
+            video.pause();
+        }
+        
+        // Volver a la página anterior o a detalles de la película
+        if (document.referrer) {
+            window.history.back();
+        } else {
+            window.location.href = "{{ url_for('main.movie_detail', movie_id=movie.id) }}";
+        }
+    }
+    
+    // Prevenir que se cierre accidentalmente
+    window.addEventListener('beforeunload', function(e) {
+        if (video && !video.paused) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    // Guardar progreso de visualización (opcional)
+    function saveWatchProgress() {
+        if (video && video.duration > 0) {
+            const progress = (video.currentTime / video.duration) * 100;
+            localStorage.setItem(`movie_${{{ movie.id }}}_progress`, progress);
+        }
+    }
+    
+    // Restaurar progreso de visualización
+    function restoreWatchProgress() {
+        if (video) {
+            const savedProgress = localStorage.getItem(`movie_${{{ movie.id }}}_progress`);
+            if (savedProgress && savedProgress > 5) { // Solo si ha visto más del 5%
+                const shouldResume = confirm(`¿Quieres continuar desde donde lo dejaste? (${Math.round(savedProgress)}%)`);
+                if (shouldResume) {
+                    video.currentTime = (savedProgress / 100) * video.duration;
+                }
+            }
+        }
+    }
+    
+    // Guardar progreso cada 30 segundos
+    if (video) {
+        setInterval(saveWatchProgress, 30000);
+        video.addEventListener('loadedmetadata', restoreWatchProgress);
+    }
+</script>
+{% endblock %} 
